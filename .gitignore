@@ -1,0 +1,11 @@
+# Entorno Virtual de Python
+venv/
+.env
+
+# Archivos de la base de datos y Docker
+*.sqlite3
+docker-compose.yml.orig
+
+# Ignorar logs y directorios de caché
+*.log
+__pycache__/
