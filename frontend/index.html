@@ -333,6 +333,15 @@
             margin: 1rem 0;
             border-left: 5px solid #17a2b8;
         }
+
+        .sheet-disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .sheet-disabled .sheet-checkbox {
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
@@ -396,7 +405,7 @@
                                 <i class="bi bi-exclamation-triangle-fill me-2 fs-4"></i>
                                 <div>
                                     <h5 class="alert-heading mb-2"> Hojas Vacías Detectadas</h5>
-                                    <p class="mb-2">Se encontraron las siguientes hojas vacías. Puedes elegir excluirlas del procesamiento.</p>
+                                    <p class="mb-2">Se encontraron las siguientes hojas vacías. Se omitirán automáticamente del procesamiento.</p>
                                     <ul id="emptySheetsList" class="mb-0"></ul>
                                 </div>
                             </div>
@@ -535,11 +544,6 @@
         const sheetsList = document.getElementById('sheetsList');
         const uploadSelectedSheets = document.getElementById('uploadSelectedSheets');
 
-        // DEBUG INICIAL
-        console.log(" DEBUG INICIAL:");
-        console.log(" Window location:", window.location.href);
-        console.log(" Origin:", window.location.origin);
-
         // Crear confeti
         function createConfetti() {
             const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff'];
@@ -660,7 +664,7 @@
                 }
 
                 validationResult = await response.json();
-                console.log("📊 Resultado de validación:", validationResult);
+                console.log("Resultado de validación:", validationResult);
                 
                 if (!validationResult.valid) {
                     throw new Error(validationResult.error);
@@ -668,18 +672,25 @@
 
                 showValidationInfo();
                 
-                // Si hay hojas vacías, mostrar alerta
-                if (validationResult.has_empty_sheets) {
+                // Mostrar alerta SIEMPRE que haya hojas vacías
+                if (validationResult.empty_sheets && validationResult.empty_sheets.length > 0) {
                     showEmptySheetsAlert();
+                } else {
+                    // Ocultar alerta si no hay hojas vacías
+                    hideEmptySheetsAlert();
                 }
                 
-                // Mostrar selección de hojas
+                // Mostrar selección de hojas SIEMPRE
                 showSheetSelection();
                 
-                // Habilitar botón de subida
-                uploadButton.disabled = false;
-                uploadButton.classList.add('animate__tada');
-                setTimeout(() => uploadButton.classList.remove('animate__tada'), 1000);
+                // Habilitar botón SOLO si hay hojas seleccionables
+                const hasSelectableSheets = validationResult.non_empty_sheets && validationResult.non_empty_sheets.length > 0;
+                uploadButton.disabled = !hasSelectableSheets;
+                
+                if (hasSelectableSheets) {
+                    uploadButton.classList.add('animate__tada');
+                    setTimeout(() => uploadButton.classList.remove('animate__tada'), 1000);
+                }
                 
             } catch (error) {
                 console.error('Error en validación:', error);
@@ -692,27 +703,50 @@
             validationInfo.classList.remove('d-none');
             validationInfo.classList.add('animate__fadeIn');
             
+            const totalSheets = validationResult.sheets || 0;
+            const emptySheetsCount = validationResult.empty_sheets ? validationResult.empty_sheets.length : 0;
+            const nonEmptySheetsCount = validationResult.non_empty_sheets ? validationResult.non_empty_sheets.length : 0;
+            
             validationContent.innerHTML = `
                 <div class="row">
                     <div class="col-md-6">
-                        <p><strong>Total de hojas:</strong> ${validationResult.sheets}</p>
-                        <p><strong>Hojas con datos:</strong> ${validationResult.non_empty_sheets.length}</p>
+                        <p><strong>Total de hojas:</strong> ${totalSheets}</p>
+                        <p><strong>Hojas con datos:</strong> ${nonEmptySheetsCount}</p>
+                        <p class="text-success"><i class="bi bi-check-circle"></i> <strong>Listas para subir</strong></p>
                     </div>
                     <div class="col-md-6">
-                        <p><strong>Hojas vacías:</strong> ${validationResult.empty_sheets.length}</p>
-                        <p><strong>Total de filas:</strong> ${validationResult.total_rows}</p>
+                        <p><strong>Hojas vacías:</strong> ${emptySheetsCount}</p>
+                        <p><strong>Total de filas:</strong> ${validationResult.total_rows || 0}</p>
+                        ${emptySheetsCount > 0 ? 
+                            '<p class="text-warning"><i class="bi bi-exclamation-triangle"></i> <strong>Se omitirán automáticamente</strong></p>' : 
+                            ''
+                        }
                     </div>
                 </div>
             `;
         }
 
         function showEmptySheetsAlert() {
+            // Asegurar que la alerta se muestre correctamente
             emptySheetsAlert.classList.remove('d-none');
-            emptySheetsAlert.classList.add('animate__shakeX');
+            emptySheetsAlert.classList.add('show', 'animate__shakeX');
             
-            emptySheetsList.innerHTML = validationResult.empty_sheets
-                .map(sheet => `<li><strong>${sheet}</strong></li>`)
-                .join('');
+            // Limpiar lista anterior
+            emptySheetsList.innerHTML = '';
+            
+            // Agregar cada hoja vacía a la lista
+            validationResult.empty_sheets.forEach(sheetName => {
+                const li = document.createElement('li');
+                li.innerHTML = `<strong>${sheetName}</strong>`;
+                emptySheetsList.appendChild(li);
+            });
+            
+            console.log("Alerta de hojas vacías mostrada:", validationResult.empty_sheets);
+        }
+
+        function hideEmptySheetsAlert() {
+            emptySheetsAlert.classList.remove('show');
+            emptySheetsAlert.classList.add('d-none');
         }
 
         function showSheetSelection() {
@@ -721,12 +755,18 @@
             
             sheetsList.innerHTML = '';
 
+            // Verificar que sheet_names existe
+            if (!validationResult.sheet_names || validationResult.sheet_names.length === 0) {
+                sheetsList.innerHTML = '<div class="text-center text-white py-3"><i class="bi bi-exclamation-triangle"></i> No se encontraron hojas</div>';
+                return;
+            }
+
             validationResult.sheet_names.forEach(sheetName => {
                 const sheetInfo = validationResult.sheet_info[sheetName];
                 const isEmpty = validationResult.empty_sheets.includes(sheetName);
                 
                 const sheetItem = document.createElement('div');
-                sheetItem.className = `sheet-item ${isEmpty ? 'empty' : ''} animate__animated animate__fadeIn`;
+                sheetItem.className = `sheet-item ${isEmpty ? 'empty sheet-disabled' : ''} animate__animated animate__fadeIn`;
                 sheetItem.innerHTML = `
                     <div class="d-flex justify-content-between align-items-center">
                         <div class="d-flex align-items-center">
@@ -735,9 +775,11 @@
                                 class="form-check-input sheet-checkbox me-3" 
                                 id="sheet-${sheetName}" 
                                 ${!isEmpty ? 'checked' : ''}
+                                ${isEmpty ? 'disabled' : ''}
                             >
-                            <label for="sheet-${sheetName}" class="form-check-label text-white fw-bold">
+                            <label for="sheet-${sheetName}" class="form-check-label ${isEmpty ? 'text-warning' : 'text-white fw-bold'}">
                                 ${sheetName}
+                                ${isEmpty ? '<br><small class="text-warning">(Hoja vacía - no se procesará)</small>' : ''}
                             </label>
                         </div>
                         <div>
@@ -755,16 +797,23 @@
                     sheetItem.classList.add('animate__fadeInUp');
                 }, validationResult.sheet_names.indexOf(sheetName) * 100);
             });
+
+            console.log("Selección de hojas mostrada");
         }
 
         function getSelectedSheets() {
             const selectedSheets = [];
+            
+            if (!validationResult.sheet_names) return selectedSheets;
+            
             validationResult.sheet_names.forEach(sheetName => {
                 const checkbox = document.getElementById(`sheet-${sheetName}`);
-                if (checkbox && checkbox.checked) {
+                if (checkbox && checkbox.checked && !checkbox.disabled) {
                     selectedSheets.push(sheetName);
                 }
             });
+            
+            console.log("Hojas seleccionadas por usuario:", selectedSheets);
             return selectedSheets;
         }
 
@@ -819,15 +868,21 @@
                 const formData = new FormData();
                 formData.append('file', selectedFile);
                 
+                // Solo enviar hojas no vacías
+                const validSheets = selectedSheets.filter(sheet => 
+                    !validationResult.empty_sheets.includes(sheet)
+                );
                 
-                if (selectedSheets && selectedSheets.length > 0) {
-                    formData.append('selected_sheets', selectedSheets.join(','));
-                    console.log("📤 Enviando hojas seleccionadas como string:", selectedSheets.join(','));
+                if (validSheets.length > 0) {
+                    formData.append('selected_sheets', validSheets.join(','));
+                    console.log("Enviando hojas válidas:", validSheets.join(','));
                 } else {
-                    console.log("📤 Enviando todas las hojas no vacías");
+                    // Si todas las seleccionadas están vacías, enviar array vacío
+                    formData.append('selected_sheets', '');
+                    console.log("Todas las hojas seleccionadas están vacías");
                 }
 
-                console.log(" Iniciando subida...");
+                console.log("Iniciando subida...");
 
                 // Progreso inicial
                 progressFill.style.width = '10%';
@@ -839,11 +894,11 @@
                     body: formData
                 });
 
-                console.log(" Respuesta recibida, status:", uploadResponse.status);
+                console.log("Respuesta recibida, status:", uploadResponse.status);
 
                 // Leer la respuesta
                 const result = await uploadResponse.json();
-                console.log(" Datos de respuesta:", result);
+                console.log("Datos de respuesta:", result);
 
                 if (!uploadResponse.ok) {
                     // Manejar error
@@ -865,7 +920,7 @@
                         throw new Error('El archivo se subió pero no contiene datos válidos para procesar');
                     }
                     
-                    showResults(result);
+                    showUploadResults(result);
                 }, 500);
 
             } catch (error) {
@@ -885,19 +940,27 @@
             }
         }
 
-        function showLoading(message) {
-            uploadArea.innerHTML = `
-                <div class="text-white">
-                    <i class="bi bi-hourglass-split upload-icon floating"></i>
-                    <h4 class="mb-3">${message}</h4>
-                    <div class="spinner-border text-light" role="status"></div>
-                </div>
-            `;
-        }
-
-        function showResults(result) {
+        function showUploadResults(result) {
             createConfetti();
-            showSuccess(result.message);
+            
+            // Mensaje mejorado con información de hojas omitidas
+            let message = result.message;
+            
+            if (result.skipped_sheets && result.skipped_sheets.length > 0) {
+                message += `<br><small class="text-warning">
+                    <i class="bi bi-info-circle"></i> 
+                    Se omitieron ${result.skipped_sheets.length} hoja(s) vacías: ${result.skipped_sheets.join(', ')}
+                </small>`;
+            }
+            
+            if (result.blank_sheets && result.blank_sheets.length > 0) {
+                message += `<br><small class="text-warning">
+                    <i class="bi bi-info-circle"></i> 
+                    ${result.blank_sheets.length} hoja(s) estaban vacías: ${result.blank_sheets.join(', ')}
+                </small>`;
+            }
+            
+            showSuccess(message);
             displayColumnsInfo(result.columns_detected);
             displaySampleData(result.sample_data);
             
@@ -907,6 +970,16 @@
             setTimeout(() => {
                 resultsSection.scrollIntoView({ behavior: 'smooth' });
             }, 500);
+        }
+
+        function showLoading(message) {
+            uploadArea.innerHTML = `
+                <div class="text-white">
+                    <i class="bi bi-hourglass-split upload-icon floating"></i>
+                    <h4 class="mb-3">${message}</h4>
+                    <div class="spinner-border text-light" role="status"></div>
+                </div>
+            `;
         }
 
         function displayColumnsInfo(columnsDetected) {
@@ -978,7 +1051,7 @@
         }
 
         function showSuccess(message) {
-            successContent.textContent = message;
+            successContent.innerHTML = message;
             successMessage.classList.add('show', 'animate__tada');
             errorMessage.classList.remove('show');
             progressContainer.style.display = 'none';

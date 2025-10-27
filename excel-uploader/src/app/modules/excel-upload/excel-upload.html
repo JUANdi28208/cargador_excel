@@ -1,0 +1,227 @@
+<!-- src/app/modules/excel-upload/excel-upload.component.html -->
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-12 col-lg-10 col-xl-8">
+            <!-- Header -->
+            <div class="text-center mb-5 animate__animated animate__fadeInDown">
+                <h1 class="display-4 fw-bold text-white mb-3 glow-text floating">
+                    <i class="bi bi-file-earmark-excel"></i>
+                    Cargador de Archivos Excel - Dinámico
+                </h1>
+                <p class="lead text-white animate__animated animate__fadeInUp animate__delay-1s">
+                    Acepta <strong>CUALQUIER</strong> estructura de Excel
+                </p>
+            </div>
+
+            <!-- Upload Card -->
+            <div class="glass-card shadow-lg animate__animated animate__zoomIn animate__delay-1s">
+                <div class="card-body p-4 p-md-5">
+                    <!-- Upload Area -->
+                    <div class="upload-area pulse" #uploadArea
+                         (click)="fileInput.click()"
+                         (drop)="onDrop($event)"
+                         (dragover)="onDragOver($event)"
+                         (dragleave)="onDragLeave($event)">
+                        <i class="bi bi-cloud-arrow-up upload-icon floating"></i>
+                        <h4 class="mb-3 text-white glow-text">Arrastra y suelta tu archivo Excel aquí</h4>
+                        <p class="text-white mb-3"> <strong>Cualquier estructura</strong> - .xlsx, .xls</p>
+                        <button class="btn btn-light btn-lg btn-animated pulse">
+                            <i class="bi bi-folder2-open"></i>
+                            Explorar Archivos
+                        </button>
+                        <input type="file" #fileInput accept=".xlsx,.xls" class="d-none" (change)="onFileSelected($event)">
+                    </div>
+
+                    <!-- File Info -->
+                    <div class="file-info animate__animated" *ngIf="selectedFile">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-file-earmark-excel text-success me-3 fs-2"></i>
+                                <div>
+                                    <div class="fw-bold text-white fs-5">{{ selectedFile.name }}</div>
+                                    <small class="text-white-50">{{ formatFileSize(selectedFile.size) }}</small>
+                                </div>
+                            </div>
+                            <button class="btn btn-outline-light btn-sm" (click)="resetFileSelection()">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Validation Info -->
+                    <div class="validation-info animate__animated" *ngIf="showValidationInfo">
+                        <h5 class="text-white mb-3">
+                            <i class="bi bi-clipboard-check"></i>
+                            Información del Archivo
+                        </h5>
+                        <div class="text-white" *ngIf="validationResult">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>Total de hojas:</strong> {{ validationResult.sheets }}</p>
+                                    <p><strong>Hojas con datos:</strong> {{ validationResult.non_empty_sheets.length }}</p>
+                                    <p class="text-success"><i class="bi bi-check-circle"></i> <strong>Listas para subir</strong></p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>Hojas vacías:</strong> {{ validationResult.empty_sheets.length }}</p>
+                                    <p><strong>Total de filas:</strong> {{ validationResult.total_rows || 0 }}</p>
+                                    <p *ngIf="validationResult.empty_sheets.length > 0" class="text-warning">
+                                        <i class="bi bi-exclamation-triangle"></i> <strong>Se omitirán automáticamente</strong>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Empty Sheets Alert -->
+                    <div class="alert alert-warning alert-dismissible fade mt-4 animate__animated" 
+                         *ngIf="showEmptySheetsAlert" role="alert">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-exclamation-triangle-fill me-2 fs-4"></i>
+                            <div>
+                                <h5 class="alert-heading mb-2"> Hojas Vacías Detectadas</h5>
+                                <p class="mb-2">Se encontraron las siguientes hojas vacías. Se omitirán automáticamente del procesamiento.</p>
+                                <ul class="mb-0">
+                                    <li *ngFor="let sheet of emptySheetsList"><strong>{{ sheet }}</strong></li>
+                                </ul>
+                            </div>
+                        </div>
+                        <button type="button" class="btn-close" (click)="hideEmptySheetsAlert()"></button>
+                    </div>
+
+                    <!-- Sheet Selection -->
+                    <div class="sheet-selection animate__animated" *ngIf="showSheetSelection">
+                        <h5 class="text-white mb-3">
+                            <i class="bi bi-list-check"></i>
+                            Selecciona las Hojas a Procesar
+                        </h5>
+                        <div>
+                            <div *ngFor="let sheetName of validationResult?.sheet_names || []" 
+                                 class="sheet-item {{ isSheetEmpty(sheetName) ? 'empty sheet-disabled' : '' }} animate__animated animate__fadeIn">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="d-flex align-items-center">
+                                        <input 
+                                            type="checkbox" 
+                                            class="form-check-input sheet-checkbox me-3" 
+                                            [id]="'sheet-' + sheetName"
+                                            [checked]="isSheetSelected(sheetName)"
+                                            [disabled]="isSheetEmpty(sheetName)"
+                                            (change)="onSheetSelectionChange(sheetName, $event)">
+                                        <label [for]="'sheet-' + sheetName" 
+                                               class="form-check-label {{ isSheetEmpty(sheetName) ? 'text-warning' : 'text-white fw-bold' }}">
+                                            {{ sheetName }}
+                                            <span *ngIf="isSheetEmpty(sheetName)">
+                                                <br><small class="text-warning">(Hoja vacía - no se procesará)</small>
+                                            </span>
+                                        </label>
+                                    </div>
+                                    <div>
+                                        <span *ngIf="isSheetEmpty(sheetName)" 
+                                              class="badge badge-warning"><i class="bi bi-exclamation-triangle"></i> VACÍA</span>
+                                        <span *ngIf="!isSheetEmpty(sheetName)" 
+                                              class="badge badge-success">
+                                            <i class="bi bi-check-circle"></i> 
+                                            {{ validationResult?.sheet_info[sheetName]?.rows }} filas
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-3">
+                            <button class="btn btn-success me-md-2" (click)="uploadFile()">
+                                <i class="bi bi-cloud-upload"></i>
+                                Subir Hojas Seleccionadas
+                            </button>
+                            <button class="btn btn-outline-light" (click)="resetFileSelection()">
+                                <i class="bi bi-arrow-counterclockwise"></i>
+                                Cancelar
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Progress -->
+                    <div class="progress-container mt-4" *ngIf="showProgress">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-bold text-white">Progreso de carga:</span>
+                            <span class="text-white">{{ uploadProgress }}%</span>
+                        </div>
+                        <div class="custom-progress">
+                            <div class="custom-progress-bar h-100" [style.width.%]="uploadProgress"></div>
+                        </div>
+                    </div>
+
+                    <!-- Messages -->
+                    <div class="alert alert-success alert-dismissible fade mt-4 animate__animated" 
+                         *ngIf="showSuccessAlert" role="alert">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-check-circle-fill me-2 fs-4"></i>
+                            <div [innerHTML]="successMessage"></div>
+                        </div>
+                        <button type="button" class="btn-close" (click)="showSuccessAlert = false"></button>
+                    </div>
+
+                    <div class="alert alert-danger alert-dismissible fade mt-4 animate__animated" 
+                         *ngIf="showErrorAlert" role="alert">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-exclamation-triangle-fill me-2 fs-4"></i>
+                            <div>{{ errorMessage }}</div>
+                        </div>
+                        <button type="button" class="btn-close" (click)="showErrorAlert = false"></button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <div class="glass-card shadow-lg mt-4 animate__animated" *ngIf="showResults">
+                <div class="preview-header">
+                    <h4 class="mb-0 text-white glow-text">
+                        <i class="bi bi-graph-up"></i>
+                        Resultados del Procesamiento
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <!-- Columns Info -->
+                    <div class="columns-info">
+                        <h5 class="text-white mb-3">
+                            <i class="bi bi-list-check"></i>
+                            Columnas Detectadas
+                        </h5>
+                        <div>
+                            <div *ngFor="let sheetName of getObjectKeys(columnsDetected)" class="mb-3">
+                                <span class="sheet-badge animate__animated animate__fadeIn">
+                                    <i class="bi bi-file-spreadsheet"></i> {{ sheetName }}
+                                </span>
+                                <div class="mt-2">
+                                    <span *ngFor="let col of columnsDetected[sheetName]" 
+                                          class="column-item animate__animated animate__fadeInUp">{{ col }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sample Data -->
+                    <div class="columns-info">
+                        <h5 class="text-white mb-3">
+                            <i class="bi bi-eye"></i>
+                            Datos de Muestra
+                        </h5>
+                        <div class="table-container">
+                            <table class="table table-dark table-hover mb-0">
+                                <thead class="sticky-top" style="background: rgba(0,0,0,0.8);">
+                                    <tr>
+                                        <th *ngFor="let header of getObjectKeys(sampleData[0] || {})" 
+                                            class="animate__animated">{{ header }}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr *ngFor="let row of sampleData">
+                                        <td *ngFor="let value of getObjectValues(row)" class="animate__animated">{{ value }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -27,7 +27,6 @@ services:
       - "8001:8000"
     volumes:
       - .:/app
-      - ./frontend:/app/frontend
     environment:
       - DATABASE_URL=mysql+pymysql://app_user:app_password@mysql:3306/excel_uploader
       - APP_HOST=0.0.0.0
@@ -37,6 +36,19 @@ services:
       mysql:
         condition: service_healthy
     restart: unless-stopped
+
+  excel-uploader:
+    build:
+      context: .
+      dockerfile: excel-uploader/Dockerfile
+    ports:
+      - "4200:4200"
+    volumes:
+      - ./excel-uploader:/usr/src/app
+    environment:
+      - NODE_ENV=development
+    depends_on:
+      - app
 
 volumes:
   mysql_data:

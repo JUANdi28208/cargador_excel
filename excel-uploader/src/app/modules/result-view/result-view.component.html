@@ -1,0 +1,65 @@
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-12 col-lg-10 col-xl-8">
+      <div class="glass-card shadow-lg animate__animated animate__zoomIn">
+        <div class="preview-header">
+          <h2 class="mb-0 text-white glow-text">
+            <i class="bi bi-graph-up"></i>
+            Resultados del Procesamiento
+          </h2>
+        </div>
+        <div class="card-body p-4 p-md-5">
+          <div class="alert alert-success mb-4">
+            <h4 class="alert-heading">¡Carga Exitosa!</h4>
+            <p>{{ uploadResult?.message }}</p>
+            <hr>
+            <p class="mb-0">Total de registros procesados: {{ uploadResult?.processed_rows }}</p>
+          </div>
+
+          <div class="columns-info mb-4">
+            <h5 class="text-white mb-3">
+              <i class="bi bi-list-check"></i>
+              Columnas Detectadas
+            </h5>
+            <div *ngFor="let sheet of getObjectKeys(uploadResult?.columns_detected || {})">
+              <h6 class="text-white">{{ sheet }}</h6>
+              <div class="d-flex flex-wrap">
+                <span *ngFor="let column of uploadResult?.columns_detected?.[sheet] ?? []" class="badge bg-primary me-2 mb-2">
+                  {{ column }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div class="sample-data">
+            <h5 class="text-white mb-3">
+              <i class="bi bi-table"></i>
+              Muestra de Datos
+            </h5>
+            <div class="table-responsive">
+              <table class="table table-dark table-hover">
+                <thead>
+                  <tr>
+                    <th *ngFor="let key of getObjectKeys(uploadResult?.sample_data?.[0] ?? {})">{{ key }}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let row of uploadResult?.sample_data ?? []">
+                    <td *ngFor="let value of getObjectValues(row)">{{ value }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+            <button class="btn btn-primary" routerLink="/">
+              <i class="bi bi-arrow-left"></i>
+              Volver al Inicio
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

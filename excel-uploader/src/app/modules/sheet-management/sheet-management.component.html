@@ -1,0 +1,49 @@
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-12 col-lg-10 col-xl-8">
+      <div class="glass-card shadow-lg animate__animated animate__zoomIn">
+        <div class="card-body p-4 p-md-5">
+          <h2 class="text-white mb-4">Selección de Hojas</h2>
+          
+          <div class="validation-info animate__animated animate__fadeIn mb-4">
+            <h5 class="text-white mb-3">
+              <i class="bi bi-clipboard-check"></i>
+              Información del Archivo
+            </h5>
+            <div class="text-white">
+              <p><strong>Total de hojas:</strong> {{ validationResult?.sheets }}</p>
+              <p><strong>Hojas con datos:</strong> {{ validationResult?.non_empty_sheets?.length }}</p>
+              <p><strong>Hojas vacías:</strong> {{ validationResult?.empty_sheets?.length }}</p>
+              <p><strong>Total de filas:</strong> {{ validationResult?.total_rows }}</p>
+            </div>
+          </div>
+
+          <div class="sheet-selection animate__animated animate__fadeInUp">
+            <h5 class="text-white mb-3">
+              <i class="bi bi-list-check"></i>
+              Selecciona las Hojas a Procesar
+            </h5>
+            <div *ngFor="let sheet of validationResult?.non_empty_sheets" class="sheet-item">
+              <label>
+                <input type="checkbox" [(ngModel)]="selectedSheets[sheet]" class="sheet-checkbox me-3">
+                {{ sheet }}
+              </label>
+              <span class="badge badge-success float-end">{{ getSheetRows(sheet) }} filas</span>
+            </div>
+          </div>
+
+          <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+            <button class="btn btn-success me-md-2" (click)="uploadSelectedSheets()" [disabled]="getSelectedSheetsCount() === 0">
+              <i class="bi bi-cloud-upload"></i>
+              Subir Hojas Seleccionadas
+            </button>
+            <button class="btn btn-outline-light" routerLink="/">
+              <i class="bi bi-arrow-counterclockwise"></i>
+              Cancelar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
