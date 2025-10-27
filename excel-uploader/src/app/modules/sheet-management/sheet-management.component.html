@@ -3,7 +3,7 @@
     <div class="col-12 col-lg-10 col-xl-8">
       <div class="glass-card shadow-lg animate__animated animate__zoomIn">
         <div class="card-body p-4 p-md-5">
-          <h2 class="text-white mb-4">Selección de Hojas</h2>
+          <h2 class="text-white mb-4">Selección y Edición de Hojas</h2>
           
           <div class="validation-info animate__animated animate__fadeIn mb-4">
             <h5 class="text-white mb-3">
@@ -21,14 +21,38 @@
           <div class="sheet-selection animate__animated animate__fadeInUp">
             <h5 class="text-white mb-3">
               <i class="bi bi-list-check"></i>
-              Selecciona las Hojas a Procesar
+              Selecciona y Edita las Hojas
             </h5>
-            <div *ngFor="let sheet of validationResult?.non_empty_sheets" class="sheet-item">
-              <label>
-                <input type="checkbox" [(ngModel)]="selectedSheets[sheet]" class="sheet-checkbox me-3">
-                {{ sheet }}
-              </label>
-              <span class="badge badge-success float-end">{{ getSheetRows(sheet) }} filas</span>
+            <div *ngFor="let sheet of validationResult?.non_empty_sheets" class="sheet-item mb-3">
+              <div class="d-flex justify-content-between align-items-center">
+                <label>
+                  <input type="checkbox" [(ngModel)]="selectedSheets[sheet]" class="sheet-checkbox me-3">
+                  {{ sheet }}
+                </label>
+                <div>
+                  <span class="badge badge-success me-2">{{ getSheetRows(sheet) }} filas</span>
+                </div>
+              </div>
+              
+              <!-- Previsualización y edición de datos -->
+              <div *ngIf="editedData[sheet]" class="mt-3 preview-table">
+                <table class="table table-sm table-striped table-dark">
+                  <thead>
+                    <tr>
+                      <th *ngFor="let header of editedData[sheet][0] | keyvalue">{{ header.key }}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr *ngFor="let row of editedData[sheet]; let rowIndex = index">
+                      <td *ngFor="let cell of row | keyvalue">
+                        <input [ngModel]="getEditedDataForSheet(sheet, rowIndex, cell.key)"
+                               (ngModelChange)="setEditedDataForSheet(sheet, rowIndex, cell.key, $event)"
+                               class="form-control form-control-sm bg-dark text-light">
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
 

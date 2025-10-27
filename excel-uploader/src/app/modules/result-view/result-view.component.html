@@ -16,6 +16,47 @@
             <p class="mb-0">Total de registros procesados: {{ uploadResult?.processed_rows }}</p>
           </div>
 
+          <div class="statistics mb-4">
+            <h5 class="text-white mb-3">
+              <i class="bi bi-bar-chart-fill"></i>
+              Estadísticas Generales
+            </h5>
+            <div class="row">
+              <div class="col-md-4 mb-3">
+                <div class="card bg-primary text-white">
+                  <div class="card-body">
+                    <h5 class="card-title">Total de Registros</h5>
+                    <p class="card-text display-4">{{ dataStats?.total_records }}</p>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-4 mb-3">
+                <div class="card bg-success text-white">
+                  <div class="card-body">
+                    <h5 class="card-title">Archivos Únicos</h5>
+                    <p class="card-text display-4">{{ dataStats?.unique_files }}</p>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-4 mb-3">
+                <div class="card bg-info text-white">
+                  <div class="card-body">
+                    <h5 class="card-title">Hojas Únicas</h5>
+                    <p class="card-text display-4">{{ dataStats?.unique_sheets }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="chart mb-4">
+            <h5 class="text-white mb-3">
+              <i class="bi bi-graph-up"></i>
+              Gráfico Estadístico
+            </h5>
+            <canvas id="statsChart"></canvas>
+          </div>
+
           <div class="columns-info mb-4">
             <h5 class="text-white mb-3">
               <i class="bi bi-list-check"></i>

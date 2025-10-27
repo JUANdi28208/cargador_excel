@@ -12,13 +12,11 @@ RUN npm install
 
 # Copiar archivos y carpetas específicos del proyecto
 COPY excel-uploader/src ./src
-COPY excel-uploader/angular.json ./
-COPY excel-uploader/tsconfig.app.json ./
-COPY excel-uploader/tsconfig.json ./
+
 
 # Instalar Angular CLI globalmente
-RUN npm install -g @angular/cli15.2.0
+RUN npm install -g @angular/cli@15.2.0
 
 
 # Comando para iniciar la aplicación en modo desarrollo
-CMD ["ng", "serve", "--host", "0.0.0.0 --port", "4200"]
+CMD ["ng", "serve", "--host", "0.0.0.0", "--port", "4200"]

@@ -11,6 +11,10 @@ import { SheetManagementComponent } from './modules/sheet-management/sheet-manag
 import { ResultViewComponent } from './modules/result-view/result-view.component';
 import { ExcelUploadService } from './services/excel-upload.service';
 
+// Importar Chart.js
+import { Chart, registerables } from 'chart.js';
+Chart.register(...registerables);
+
 @NgModule({
   declarations: [
     AppComponent,

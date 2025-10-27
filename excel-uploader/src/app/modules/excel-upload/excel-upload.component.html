@@ -1,59 +1,123 @@
 <div class="container py-5">
-    <div class="row justify-content-center">
-        <div class="col-12 col-lg-10 col-xl-8">
-            <!-- Header -->
-            <div class="text-center mb-5 animate__animated animate__fadeInDown">
-                <h1 class="display-4 fw-bold text-white mb-3 glow-text floating">
-                    <i class="bi bi-file-earmark-excel"></i>
-                    Cargador de Archivos Excel - Dinámico
-                </h1>
-                <p class="lead text-white animate__animated animate__fadeInUp animate__delay-1s">
-                    Acepta <strong>CUALQUIER</strong> estructura de Excel
-                </p>
-            </div>
+  <div class="row justify-content-center">
+    <div class="col-12 col-lg-10 col-xl-8">
+      <!-- Header -->
+      <div class="text-center mb-5 animate__animated animate__fadeInDown">
+        <h1 class="display-4 fw-bold text-white mb-3 glow-text floating">
+          <i class="bi bi-file-earmark-excel"></i>
+          Cargador de Archivos Excel - Dinámico
+        </h1>
+        <p
+          class="lead text-white animate__animated animate__fadeInUp animate__delay-1s"
+        >
+          Acepta <strong>CUALQUIER</strong> estructura de Excel
+        </p>
+      </div>
 
-            <!-- Upload Card -->
-            <div class="glass-card shadow-lg animate__animated animate__zoomIn animate__delay-1s">
-                <div class="card-body p-4 p-md-5">
-                    <!-- Upload Area -->
-                    <div class="upload-area pulse" (click)="fileInput.click()" (dragover)="onDragOver($event)" (dragleave)="onDragLeave($event)" (drop)="onDrop($event)">
-                        <i class="bi bi-cloud-arrow-up upload-icon floating"></i>
-                        <h4 class="mb-3 text-white glow-text">Arrastra y suelta tu archivo Excel aquí</h4>
-                        <p class="text-white mb-3"> <strong>Cualquier estructura</strong> - .xlsx, .xls</p>
-                        <button class="btn btn-light btn-lg btn-animated pulse">
-                            <i class="bi bi-folder2-open"></i>
-                            Explorar Archivos
-                        </button>
-                        <input type="file" #fileInput (change)="onFileSelected($event)" accept=".xlsx,.xls" class="d-none">
-                    </div>
+      <!-- Upload Card -->
+      <div
+        class="glass-card shadow-lg animate__animated animate__zoomIn animate__delay-1s"
+      >
+        <div class="card-body p-4 p-md-5">
+          <!-- Upload Area -->
+          <div
+            class="upload-area pulse"
+            (click)="fileInput.click()"
+            (dragover)="onDragOver($event)"
+            (dragleave)="onDragLeave($event)"
+            (drop)="onDrop($event)"
+          >
+            <i class="bi bi-cloud-arrow-up upload-icon floating"></i>
+            <h4 class="mb-3 text-white glow-text">
+              Arrastra y suelta tu archivo Excel aquí
+            </h4>
+            <p class="text-white mb-3">
+              <strong>Cualquier estructura</strong> - .xlsx, .xls
+            </p>
+            <button class="btn btn-light btn-lg btn-animated pulse">
+              <i class="bi bi-folder2-open"></i>
+              Explorar Archivos
+            </button>
+            <input
+              type="file"
+              #fileInput
+              (change)="onFileSelected($event)"
+              accept=".xlsx,.xls"
+              class="d-none"
+            />
+          </div>
 
-                    <!-- File Info -->
-                    <div class="file-info animate__animated" [class.d-none]="!selectedFile">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div class="d-flex align-items-center">
-                                <i class="bi bi-file-earmark-excel text-success me-3 fs-2"></i>
-                                <div>
-                                    <div class="fw-bold text-white fs-5">{{ selectedFile?.name }}</div>
-                                    <small class="text-white-50">{{ selectedFile?.size | number }} bytes</small>
-                                </div>
-                            </div>
-                            <button class="btn btn-outline-light btn-sm" (click)="clearFile()">
-                                <i class="bi bi-x-lg"></i>
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Error Message -->
-                    <div class="alert alert-danger alert-dismissible fade mt-4 animate__animated" 
-                         [class.show]="showErrorAlert" role="alert">
-                        <div class="d-flex align-items-center">
-                            <i class="bi bi-exclamation-triangle-fill me-2 fs-4"></i>
-                            <div>{{ errorMessage }}</div>
-                        </div>
-                        <button type="button" class="btn-close" (click)="showErrorAlert = false"></button>
-                    </div>
+          <!-- File Info -->
+          <div
+            class="file-info animate__animated"
+            [class.d-none]="!selectedFile"
+          >
+            <div class="d-flex justify-content-between align-items-center">
+              <div class="d-flex align-items-center">
+                <i class="bi bi-file-earmark-excel text-success me-3 fs-2"></i>
+                <div>
+                  <div class="fw-bold text-white fs-5">
+                    {{ selectedFile?.name }}
+                  </div>
+                  <small class="text-white-50"
+                    >{{ selectedFile?.size | number }} bytes</small
+                  >
                 </div>
+              </div>
+              <button
+                class="btn btn-outline-light btn-sm"
+                (click)="clearFile()"
+              >
+                <i class="bi bi-x-lg"></i>
+              </button>
             </div>
+          </div>
+
+          <!-- Error Message -->
+          <div
+            class="alert alert-danger alert-dismissible fade mt-4 animate__animated"
+            [class.show]="showErrorAlert"
+            role="alert"
+          >
+            <div class="d-flex align-items-center">
+              <i class="bi bi-exclamation-triangle-fill me-2 fs-4"></i>
+              <div>{{ errorMessage }}</div>
+            </div>
+            <button
+              type="button"
+              class="btn-close"
+              (click)="showErrorAlert = false"
+            ></button>
+          </div>
         </div>
+        <!-- Resumen de Validación -->
+        <div
+          *ngIf="validationResult"
+          class="mt-4 animate__animated animate__fadeIn"
+        >
+          <h4 class="text-white">Resumen de Validación</h4>
+          <ul class="list-group">
+            <li class="list-group-item">
+              Total de hojas: {{ validationResult.sheets  }}
+            </li>
+            <li class="list-group-item">
+              Hojas con datos: {{ validationResult.non_empty_sheets.length }}
+            </li>
+            <li class="list-group-item">
+              Hojas vacías: {{ validationResult.empty_sheets.length}}
+            </li>
+            <li class="list-group-item">
+              Total de filas: {{ validationResult.total_rows}}
+            </li>
+          </ul>
+          <button
+            class="btn btn-primary mt-3"
+            (click)="proceedToSheetManagement()"
+          >
+            Proceder a la Gestión de Hojas
+          </button>
+        </div>
+      </div>
     </div>
+  </div>
 </div>
