@@ -1,9 +1,11 @@
 import pandas as pd
 from sqlalchemy.orm import Session
-from . import models, schemas
+import models
+import schemas
 import io
 from typing import Dict, Any, List
 import logging
+from sqlalchemy import func, desc
 
 logger = logging.getLogger(__name__)
 
@@ -214,7 +216,7 @@ class DynamicExcelProcessor:
             self.total_rows = 0
             self.processed_rows = 0
 
-            print(f"🔍 Procesando {len(selected_sheets)} hojas seleccionadas...")
+            print(f" Procesando {len(selected_sheets)} hojas seleccionadas...")
 
             for sheet_name in selected_sheets:
                 try:
@@ -225,7 +227,7 @@ class DynamicExcelProcessor:
                     # Verificar si la hoja está vacía
                     if self.is_sheet_empty(df):
                         skipped_sheets.append(sheet_name)
-                        print(f"   📭 Hoja vacía omitida: {sheet_name}")
+                        print(f"    Hoja vacía omitida: {sheet_name}")
                         logger.info(f"Hoja vacía omitida: {sheet_name}")
                         continue
 
@@ -304,7 +306,7 @@ class DynamicExcelProcessor:
 
             sheets_processed = len(selected_sheets) - len(skipped_sheets)
 
-            print(f"📊 RESUMEN FINAL:")
+            print(f" RESUMEN FINAL:")
             print(f"   Hojas procesadas: {sheets_processed}")
             print(f"   Hojas saltadas: {len(skipped_sheets)}")
             print(f"   Total filas procesadas: {len(all_records)}")
@@ -389,6 +391,309 @@ class DynamicExcelProcessor:
     
     def get_progress(self) -> int:
         return self.progress
+    
+    def get_data_stats(self, db: Session) -> Dict[str, Any]:
+        """Obtener estadísticas de los datos cargados en la base de datos - VERSIÓN CORREGIDA"""
+        try:
+            from . import models
+            
+            # Total de registros
+            total_records = db.query(models.ExcelData).count()
+            
+            # Estadísticas por archivo
+            files_stats = db.query(
+                models.ExcelData.filename,
+                func.count(models.ExcelData.id).label('record_count'),
+                func.max(models.ExcelData.upload_date).label('last_upload')
+            ).group_by(models.ExcelData.filename).all()
+            
+            # Total de hojas diferentes
+            total_sheets = db.query(models.ExcelData.sheet_name).distinct().count()
+            
+            # **CORRECCIÓN: Últimos archivos procesados (sin el problema de MySQL)**
+            recent_files_subquery = db.query(
+                models.ExcelData.filename,
+                func.max(models.ExcelData.upload_date).label('max_date')
+            ).group_by(models.ExcelData.filename).subquery()
+            
+            recent_files = db.query(recent_files_subquery.c.filename).order_by(
+                desc(recent_files_subquery.c.max_date)
+            ).limit(5).all()
+            
+            # Estadísticas por hoja
+            sheets_stats = db.query(
+                models.ExcelData.sheet_name,
+                func.count(models.ExcelData.id).label('record_count')
+            ).group_by(models.ExcelData.sheet_name).all()
+            
+            # Estadísticas por tipo de archivo (extensión)
+            file_extensions = db.query(
+                func.substring_index(models.ExcelData.filename, '.', -1).label('extension'),
+                func.count(models.ExcelData.id).label('record_count')
+            ).group_by('extension').all()
+            
+            return {
+                "total_records": total_records,
+                "files_processed": len(files_stats),
+                "total_sheets": total_sheets,
+                "files_stats": [
+                    {
+                        "filename": stat.filename, 
+                        "record_count": stat.record_count,
+                        "last_upload": stat.last_upload.isoformat() if stat.last_upload else None
+                    } 
+                    for stat in files_stats
+                ],
+                "sheets_stats": [
+                    {
+                        "sheet_name": stat.sheet_name,
+                        "record_count": stat.record_count
+                    }
+                    for stat in sheets_stats
+                ],
+                "file_extensions": [
+                    {
+                        "extension": stat.extension,
+                        "record_count": stat.record_count
+                    }
+                    for stat in file_extensions
+                ],
+                "recent_files": [file[0] for file in recent_files],
+                "summary": {
+                    "total_files": len(files_stats),
+                    "total_sheets": total_sheets,
+                    "total_records": total_records,
+                    "avg_records_per_file": round(total_records / len(files_stats), 2) if files_stats else 0
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"Error generando estadísticas: {str(e)}")
+            return {
+                "error": f"Error generando estadísticas: {str(e)}",
+                "total_records": 0,
+                "files_processed": 0,
+                "total_sheets": 0,
+                "files_stats": [],
+                "sheets_stats": [],
+                "recent_files": [],
+                "file_extensions": [],
+                "summary": {
+                    "total_files": 0,
+                    "total_sheets": 0,
+                    "total_records": 0,
+                    "avg_records_per_file": 0
+                }
+            }
+
+    def get_chart_data(self, db: Session, filename: str, x_axis: str, y_axis: str, 
+                      chart_type: str = "bar", group_by: str = None) -> Dict[str, Any]:
+        """Obtener datos formateados para gráficos"""
+        try:
+            records = db.query(models.ExcelData).filter(
+                models.ExcelData.filename == filename
+            ).all()
+            
+            if not records:
+                return {
+                    "success": False,
+                    "error": "No se encontraron datos para este archivo",
+                    "data": []
+                }
+            
+            # Procesar datos según el tipo de gráfico
+            if chart_type in ["bar", "line"]:
+                data = self._process_bar_line_data(records, x_axis, y_axis, group_by)
+            elif chart_type == "pie":
+                data = self._process_pie_data(records, x_axis, y_axis)
+            elif chart_type == "scatter":
+                data = self._process_scatter_data(records, x_axis, y_axis, group_by)
+            else:
+                return {
+                    "success": False,
+                    "error": "Tipo de gráfico no soportado",
+                    "data": []
+                }
+            
+            return {
+                "success": True,
+                "filename": filename,
+                "chart_type": chart_type,
+                "x_axis": x_axis,
+                "y_axis": y_axis,
+                "group_by": group_by,
+                "data": data,
+                "total_records": len(records)
+            }
+            
+        except Exception as e:
+            logger.error(f"Error generando datos de gráfico: {str(e)}")
+            return {
+                "success": False,
+                "error": f"Error generando gráfico: {str(e)}",
+                "data": []
+            }
+
+    def get_available_columns(self, db: Session, filename: str) -> Dict[str, Any]:
+        """Obtener columnas disponibles para análisis y gráficos"""
+        try:
+            records = db.query(models.ExcelData).filter(
+                models.ExcelData.filename == filename
+            ).limit(10).all()  # Solo necesitamos algunos registros para analizar
+            
+            if not records:
+                return {
+                    "success": False,
+                    "error": "No se encontraron datos para este archivo",
+                    "columns": []
+                }
+            
+            # Obtener columnas del primer registro
+            sample_record = records[0].row_data
+            all_columns = list(sample_record.keys())
+            
+            # Clasificar columnas
+            numeric_columns = []
+            categorical_columns = []
+            date_columns = []
+            
+            for col in all_columns:
+                is_numeric = False
+                is_date = False
+                
+                # Analizar algunos registros para determinar el tipo
+                for record in records[:5]:
+                    value = record.row_data.get(col)
+                    if value:
+                        # Verificar si es numérico
+                        if self._is_numeric_value(value):
+                            is_numeric = True
+                            break
+                        # Verificar si es fecha (por nombre de columna)
+                        elif any(date_keyword in col.lower() for date_keyword in 
+                                ['fecha', 'date', 'año', 'year', 'mes', 'month', 'dia', 'day']):
+                            is_date = True
+                            break
+                
+                if is_numeric:
+                    numeric_columns.append(col)
+                elif is_date:
+                    date_columns.append(col)
+                else:
+                    categorical_columns.append(col)
+            
+            return {
+                "success": True,
+                "filename": filename,
+                "all_columns": all_columns,
+                "numeric_columns": numeric_columns,
+                "categorical_columns": categorical_columns,
+                "date_columns": date_columns,
+                "sample_record": sample_record
+            }
+            
+        except Exception as e:
+            logger.error(f"Error obteniendo columnas disponibles: {str(e)}")
+            return {
+                "success": False,
+                "error": f"Error obteniendo columnas: {str(e)}",
+                "columns": []
+            }
+
+    def _process_bar_line_data(self, records, x_axis: str, y_axis: str, group_by: str = None) -> List[Dict[str, Any]]:
+        """Procesar datos para gráficos de barras y líneas"""
+        data_map = {}
+        
+        for record in records:
+            x_value = str(record.row_data.get(x_axis, "N/A"))
+            y_value = self._parse_numeric(record.row_data.get(y_axis, 0))
+            
+            if group_by:
+                group_value = str(record.row_data.get(group_by, "General"))
+                key = f"{x_value}||{group_value}"
+            else:
+                key = x_value
+                group_value = None
+            
+            if key not in data_map:
+                data_map[key] = {
+                    "x": x_value, 
+                    "y": 0, 
+                    "group": group_value
+                }
+            
+            data_map[key]["y"] += y_value
+        
+        return list(data_map.values())
+
+    def _process_pie_data(self, records, x_axis: str, y_axis: str) -> List[Dict[str, Any]]:
+        """Procesar datos para gráficos de torta"""
+        data_map = {}
+        
+        for record in records:
+            category = str(record.row_data.get(x_axis, "N/A"))
+            value = self._parse_numeric(record.row_data.get(y_axis, 0))
+            
+            if category not in data_map:
+                data_map[category] = 0
+            
+            data_map[category] += value
+        
+        # Filtrar categorías con valor 0 y ordenar por valor descendente
+        filtered_data = {k: v for k, v in data_map.items() if v > 0}
+        sorted_data = dict(sorted(filtered_data.items(), key=lambda x: x[1], reverse=True))
+        
+        return [{"name": k, "value": v} for k, v in sorted_data.items()]
+
+    def _process_scatter_data(self, records, x_axis: str, y_axis: str, group_by: str = None) -> List[Dict[str, Any]]:
+        """Procesar datos para gráficos de dispersión"""
+        data = []
+        
+        for record in records:
+            x_value = self._parse_numeric(record.row_data.get(x_axis, 0))
+            y_value = self._parse_numeric(record.row_data.get(y_axis, 0))
+            
+            # Solo incluir puntos con valores válidos
+            if x_value != 0 and y_value != 0:
+                point = {
+                    "x": x_value,
+                    "y": y_value,
+                    "group": str(record.row_data.get(group_by, "General")) if group_by else None
+                }
+                data.append(point)
+        
+        return data
+
+    def _parse_numeric(self, value) -> float:
+        """Convertir valor a numérico de forma segura"""
+        try:
+            if isinstance(value, (int, float)):
+                return float(value)
+            elif isinstance(value, str):
+                # Limpiar caracteres no numéricos
+                cleaned = value.replace('$', '').replace(',', '').replace(' ', '').replace('€', '').replace('£', '')
+                # Reemplazar puntos decimales si es necesario
+                if cleaned.count('.') > 1:
+                    parts = cleaned.split('.')
+                    cleaned = parts[0] + '.' + ''.join(parts[1:])
+                return float(cleaned)
+            else:
+                return 0.0
+        except (ValueError, TypeError):
+            return 0.0
+
+    def _is_numeric_value(self, value) -> bool:
+        """Determinar si un valor es numérico"""
+        try:
+            if isinstance(value, (int, float)):
+                return True
+            elif isinstance(value, str):
+                self._parse_numeric(value)
+                return True
+            else:
+                return False
+        except:
+            return False
 
 # Instancia global
 upload_processor = DynamicExcelProcessor()

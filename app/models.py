@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, DateTime, Text, JSON
 from sqlalchemy.sql import func
-from .database import Base
+from database import Base
 
 class ExcelData(Base):
     __tablename__ = "excel_data"
@@ -12,4 +12,4 @@ class ExcelData(Base):
     upload_date = Column(DateTime(timezone=True), server_default=func.now())  # Renombrado
     
     def __repr__(self):
-        return f"<ExcelData(filename='{self.filename}', data={self.row_data})>"
+        return f"<ExcelData(filename='{self.filename}', sheet_name='{self.sheet_name}', data={self.data})>"
